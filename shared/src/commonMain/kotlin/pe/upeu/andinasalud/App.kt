@@ -155,8 +155,10 @@ fun AndinaSaludApp() {
 
                 DetalleCitaScreen(
                     citaId = citaId,
-                    viewModel = koinViewModel(),
-                    onBack = { navController.popBackStack() }
+                    onNavigateBack = {
+                        // Tu lógica de navegación para regresar, por ejemplo:
+                        navController.popBackStack()
+                    }
                 )
             }
 

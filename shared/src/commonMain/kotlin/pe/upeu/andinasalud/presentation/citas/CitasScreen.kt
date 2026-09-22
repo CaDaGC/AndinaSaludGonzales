@@ -1,26 +1,60 @@
 package pe.upeu.andinasalud.presentation.citas
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.koin.compose.viewmodel.koinViewModel
 import pe.upeu.andinasalud.domain.model.Cita
 import pe.upeu.andinasalud.domain.model.EstadoCita
+import pe.upeu.andinasalud.domain.model.ModalidadAtencion
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CitasScreen(
-    viewModel: CitasViewModel,
+    viewModel: CitasViewModel = koinViewModel(),
     onNavigateToDetalle: (Int) -> Unit
 ) {
+    LaunchedEffect(Unit) {
+        viewModel.cargarCitas()
+    }
+
     val uiState by viewModel.uiState.collectAsState()
+    var soloHoySeleccionado by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -28,94 +62,100 @@ fun CitasScreen(
                 title = { Text("Mis Citas") }
             )
         }
-    ) { innerPadding ->
-        Box(
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
             when (val state = uiState) {
                 is CitasUiState.Cargando -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                is CitasUiState.Error -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(text = state.mensaje, color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.cargarCitas() }) {
-                            Text("Reintentar")
-                        }
+                        CircularProgressIndicator()
                     }
                 }
                 is CitasUiState.Exito -> {
-                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-                        // Campo de búsqueda (RF-05)
-                        OutlinedTextField(
-                            value = state.textoBusqueda,
-                            onValueChange = { viewModel.actualizarBusqueda(it) },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Buscar por especialidad o médico...") },
-                            singleLine = true
-                        )
+                    // Campo de búsqueda opcional
+                    OutlinedTextField(
+                        value = state.textoBusqueda,
+                        onValueChange = { viewModel.actualizarBusqueda(it) },
+                        label = { Text("Buscar por médico o especialidad") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        // Chips de filtro por estado (RF-02)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                    // Filtros
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        // SC-A: Chip "Hoy"
+                        item {
                             FilterChip(
-                                selected = state.filtroEstado == FiltroEstado.TODAS,
-                                onClick = { viewModel.seleccionarFiltro(FiltroEstado.TODAS) },
-                                label = { Text("Todas") }
-                            )
-                            FilterChip(
-                                selected = state.filtroEstado == FiltroEstado.PROGRAMADAS,
-                                onClick = { viewModel.seleccionarFiltro(FiltroEstado.PROGRAMADAS) },
-                                label = { Text("Programadas") }
-                            )
-                            FilterChip(
-                                selected = state.filtroEstado == FiltroEstado.ATENDIDAS,
-                                onClick = { viewModel.seleccionarFiltro(FiltroEstado.ATENDIDAS) },
-                                label = { Text("Atendidas") }
-                            )
-                            FilterChip(
-                                selected = state.filtroEstado == FiltroEstado.CANCELADAS,
-                                onClick = { viewModel.seleccionarFiltro(FiltroEstado.CANCELADAS) },
-                                label = { Text("Canceladas") }
+                                selected = soloHoySeleccionado,
+                                onClick = {
+                                    soloHoySeleccionado = !soloHoySeleccionado
+                                    viewModel.alternarFiltroHoy(soloHoySeleccionado)
+                                },
+                                label = { Text("Hoy") }
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        // Filtros por Estado
+                        items(FiltroEstado.entries.toTypedArray()) { filtro ->
+                            FilterChip(
+                                selected = state.filtroEstado == filtro,
+                                onClick = { viewModel.cambiarFiltroEstado(filtro) },
+                                label = {
+                                    Text(
+                                        when (filtro) {
+                                            FiltroEstado.TODAS -> "Todas"
+                                            FiltroEstado.PROGRAMADAS -> "Programadas"
+                                            FiltroEstado.ATENDIDAS -> "Atendidas"
+                                            FiltroEstado.CANCELADAS -> "Canceladas"
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
 
-                        // Lista o estado vacío (RF-08)
-                        if (state.citas.isEmpty()) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "No se encontraron citas",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (state.citas.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No se encontraron citas.")
+                        }
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(state.citas) { cita ->
+                                TarjetaCitaItem(
+                                    cita = cita,
+                                    onClick = { onNavigateToDetalle(cita.id) }
                                 )
                             }
-                        } else {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.citas) { cita ->
-                                    ItemCitaCard(cita = cita, onClick = { onNavigateToDetalle(cita.id) })
-                                }
-                            }
                         }
+                    }
+                }
+                is CitasUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = state.mensaje,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }
@@ -124,13 +164,28 @@ fun CitasScreen(
 }
 
 @Composable
-private fun ItemCitaCard(
+fun TarjetaCitaItem(
     cita: Cita,
     onClick: () -> Unit
 ) {
+    val textoEstado = when (cita.estado) {
+        is EstadoCita.Programada -> "Programada"
+        is EstadoCita.Atendida -> "Atendida"
+        is EstadoCita.Cancelada -> "Cancelada"
+    }
+
+    // SC-C: Selección de ícono por modalidad
+    val iconoModalidad = if (cita.modalidad == ModalidadAtencion.TELECONSULTA) {
+        Icons.Default.VideoCall
+    } else {
+        Icons.Default.LocationOn
+    }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -138,42 +193,34 @@ private fun ItemCitaCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = iconoModalidad,
+                        contentDescription = cita.modalidad.name,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = cita.especialidad,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
                 Text(
-                    text = cita.especialidad,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    text = textoEstado,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                TagEstado(estado = cita.estado)
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = "Médico: ${cita.medico}")
-            Text(text = "Sede: ${cita.sede}")
             Text(
-                text = "Fecha: ${cita.fecha} - ${cita.hora}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
+                text = cita.medico,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "${cita.fecha} - ${cita.hora} hs",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    }
-}
-
-@Composable
-private fun TagEstado(estado: EstadoCita) {
-    val (texto, color) = when (estado) {
-        is EstadoCita.Programada -> "Programada" to MaterialTheme.colorScheme.primary
-        is EstadoCita.Atendida -> "Atendida" to MaterialTheme.colorScheme.secondary
-        is EstadoCita.Cancelada -> "Cancelada" to MaterialTheme.colorScheme.error
-    }
-    Surface(
-        color = color.copy(alpha = 0.15f),
-        shape = MaterialTheme.shapes.small
-    ) {
-        Text(
-            text = texto,
-            color = color,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            fontWeight = FontWeight.Bold
-        )
     }
 }

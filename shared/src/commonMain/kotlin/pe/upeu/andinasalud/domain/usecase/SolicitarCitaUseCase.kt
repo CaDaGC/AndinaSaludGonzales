@@ -59,6 +59,6 @@ class SolicitarCitaUseCase(
             )
         }
 
-        return repository.solicitarCita(cita)
+        return repository.solicitarCita(cita).map { cita }
     }
 }

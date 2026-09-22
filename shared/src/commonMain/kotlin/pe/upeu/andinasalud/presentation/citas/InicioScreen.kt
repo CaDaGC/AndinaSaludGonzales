@@ -45,7 +45,7 @@ fun InicioScreen(
                     ) {
                         Text(text = state.mensaje, color = MaterialTheme.colorScheme.error)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.cargarDatosInicio() }) {
+                        Button(onClick = { viewModel.cargarDatos() }) {
                             Text("Reintentar")
                         }
                     }

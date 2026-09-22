@@ -1,5 +1,10 @@
 package pe.upeu.andinasalud.domain.model
 
+enum class ModalidadAtencion {
+    PRESENCIAL,
+    TELECONSULTA
+}
+
 data class Cita(
     val id: Int,
     val especialidad: String,
@@ -7,5 +12,6 @@ data class Cita(
     val sede: String,
     val fecha: String,
     val hora: String,
-    val estado: EstadoCita
+    val estado: EstadoCita,
+    val modalidad: ModalidadAtencion = ModalidadAtencion.PRESENCIAL
 )

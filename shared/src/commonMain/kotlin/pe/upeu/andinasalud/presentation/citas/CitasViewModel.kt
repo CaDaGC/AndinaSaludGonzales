@@ -2,7 +2,6 @@ package pe.upeu.andinasalud.presentation.citas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,9 +17,10 @@ class CitasViewModel(
     private val _uiState = MutableStateFlow<CitasUiState>(CitasUiState.Cargando)
     val uiState: StateFlow<CitasUiState> = _uiState.asStateFlow()
 
-    private var todasLasCitas: List<Cita> = emptyList()
-    private var filtroActual = FiltroEstado.TODAS
-    private var busquedaActual = ""
+    private var filtroEstadoActual: FiltroEstado = FiltroEstado.TODAS
+    private var soloHoyActual: Boolean = false
+    private var busquedaActual: String = ""
+    private val fechaHoySimulada = "2026-09-22"
 
     init {
         cargarCitas()
@@ -30,58 +30,55 @@ class CitasViewModel(
         viewModelScope.launch {
             _uiState.value = CitasUiState.Cargando
             try {
-                // Simulación de retardo de 800 ms según RF-08
-                delay(800)
-                todasLasCitas = obtenerCitasUseCase()
-                aplicarFiltros()
+                val listaCompleta = obtenerCitasUseCase()
+                val listaFiltrada = aplicarFiltros(listaCompleta)
+
+                _uiState.value = CitasUiState.Exito(
+                    citas = listaFiltrada,
+                    filtroEstado = filtroEstadoActual,
+                    textoBusqueda = busquedaActual
+                )
             } catch (e: Exception) {
-                _uiState.value = CitasUiState.Error("Error al cargar las citas: ${e.message}")
+                _uiState.value = CitasUiState.Error(e.message ?: "Error al cargar citas")
             }
         }
     }
 
-    fun seleccionarFiltro(filtro: FiltroEstado) {
-        filtroActual = filtro
-        aplicarFiltros()
+    // SC-A: Lógica combinada de filtros resuelta dentro del ViewModel
+    private fun aplicarFiltros(lista: List<Cita>): List<Cita> {
+        return lista.filter { cita ->
+            val cumpleEstado = when (filtroEstadoActual) {
+                FiltroEstado.PROGRAMADAS -> cita.estado is EstadoCita.Programada
+                FiltroEstado.ATENDIDAS -> cita.estado is EstadoCita.Atendida
+                FiltroEstado.CANCELADAS -> cita.estado is EstadoCita.Cancelada
+                FiltroEstado.TODAS -> true
+            }
+
+            val cumpleHoy = if (soloHoyActual) cita.fecha == fechaHoySimulada else true
+
+            val cumpleBusqueda = if (busquedaActual.isBlank()) {
+                true
+            } else {
+                cita.especialidad.contains(busquedaActual, ignoreCase = true) ||
+                        cita.medico.contains(busquedaActual, ignoreCase = true)
+            }
+
+            cumpleEstado && cumpleHoy && cumpleBusqueda
+        }
+    }
+
+    fun cambiarFiltroEstado(nuevoFiltro: FiltroEstado) {
+        filtroEstadoActual = nuevoFiltro
+        cargarCitas()
+    }
+
+    fun alternarFiltroHoy(activado: Boolean) {
+        soloHoyActual = activado
+        cargarCitas()
     }
 
     fun actualizarBusqueda(texto: String) {
         busquedaActual = texto
-        aplicarFiltros()
-    }
-
-    private fun aplicarFiltros() {
-        var resultado = todasLasCitas
-
-        // Filtrar por estado (RF-02)
-        resultado = when (filtroActual) {
-            FiltroEstado.TODAS -> resultado
-            FiltroEstado.PROGRAMADAS -> resultado.filter { it.estado is EstadoCita.Programada }
-            FiltroEstado.ATENDIDAS -> resultado.filter { it.estado is EstadoCita.Atendida }
-            FiltroEstado.CANCELADAS -> resultado.filter { it.estado is EstadoCita.Cancelada }
-        }
-
-        // Búsqueda por especialidad o médico sin distinguir mayúsculas/tildes (RF-05)
-        if (busquedaActual.isNotBlank()) {
-            val query = busquedaActual.normalizar()
-            resultado = resultado.filter { cita ->
-                cita.especialidad.normalizar().contains(query) ||
-                        cita.medico.normalizar().contains(query)
-            }
-        }
-
-        _uiState.value = CitasUiState.Exito(
-            citas = resultado,
-            filtroEstado = filtroActual,
-            textoBusqueda = busquedaActual
-        )
-    }
-
-    private fun String.normalizar(): String {
-        val tildes = mapOf(
-            'á' to 'a', 'é' to 'e', 'í' to 'i', 'ó' to 'o', 'ú' to 'u',
-            'Á' to 'a', 'É' to 'e', 'Í' to 'i', 'Ó' to 'o', 'Ú' to 'u', 'ñ' to 'n', 'Ñ' to 'n'
-        )
-        return this.lowercase().map { tildes[it] ?: it }.joinToString("")
+        cargarCitas()
     }
 }
