@@ -8,6 +8,7 @@ import pe.upeu.andinasalud.domain.usecase.ObtenerCitasUseCase
 import pe.upeu.andinasalud.domain.usecase.SolicitarCitaUseCase
 import pe.upeu.andinasalud.presentation.citas.CitasViewModel
 import pe.upeu.andinasalud.presentation.citas.InicioViewModel
+import pe.upeu.andinasalud.presentation.detalle.DetalleCitaViewModel
 
 val appModule = module {
     // Repositorio
@@ -21,4 +22,5 @@ val appModule = module {
     // ViewModels
     factory { InicioViewModel(get()) }
     factory { CitasViewModel(get()) }
+    factory { DetalleCitaViewModel(get(), get()) }
 }
