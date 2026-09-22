@@ -1,5 +1,6 @@
 package pe.upeu.andinasalud.di
 
+import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.module
 import pe.upeu.andinasalud.data.repository.CitaRepositoryFake
 import pe.upeu.andinasalud.domain.repository.CitaRepository
@@ -12,7 +13,7 @@ import pe.upeu.andinasalud.presentation.detalle.DetalleCitaViewModel
 import pe.upeu.andinasalud.presentation.solicitar.SolicitarCitaViewModel
 
 val appModule = module {
-    // Repositorio
+    // Repositorio (Instancia única compartida)
     single<CitaRepository> { CitaRepositoryFake() }
 
     // Casos de Uso
@@ -21,8 +22,8 @@ val appModule = module {
     factory { CancelarCitaUseCase(get()) }
 
     // ViewModels
-    factory { InicioViewModel(get()) }
-    factory { CitasViewModel(get()) }
-    factory { DetalleCitaViewModel(get(), get()) }
-    factory { SolicitarCitaViewModel(get(), get()) }
+    viewModelOf(::InicioViewModel)
+    viewModelOf(::CitasViewModel)
+    viewModelOf(::DetalleCitaViewModel)
+    viewModelOf(::SolicitarCitaViewModel)
 }
